@@ -7,7 +7,7 @@ import sys
 
 import os
 
-elements = ['BS','HS','B','H','S','L','F','Y','C']
+elements = ['BS','HS','B','H','S','L','F','Y','C','CN']
 
 root = tkinter.Tk()
 root.withdraw()
@@ -16,6 +16,8 @@ try:
     f = open("./basic_resource/cardHide.png")
     f.close()
     f = open("./basic_resource/card.png")
+    f.close()
+    f = open("./basic_resource/elementBase.png")
     f.close()
     for i in elements:
         f = open("./basic_resource/elements/" + i + ".png")
@@ -52,8 +54,8 @@ def DrawBorder(draw, x, y, text, font, shadowcolor, fillcolor, boldval):
     #带边框的输出
     draw.text((x, y), text, font=font, fill=fillcolor)
 
-half = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890,.?:;()=-+*/（）"
-shorter = "iIl1"
+half = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890,.?:;()=-+*/（）「」『』"
+shorter = "iIl1()"
 colorDict = {
     'BS':'white',
     'HS':'#A9A7A1',
@@ -63,7 +65,8 @@ colorDict = {
     'L':'#EEA9EF',
     'F':'#80F4D7',
     'Y':'#FFF29F',
-    'C':'#84CC35'
+    'C':'#84CC35',
+    'CN':'#E6C378'
 }
 
 debugger = ""
@@ -74,27 +77,32 @@ def WriteChar(img, txt, X, AddedLines, color = colorDict['HS'], IfLined = False)
     debugger = debugger + txt
     draw = ImageDraw.Draw(img)
         
-    draw.text((X,460+AddedLines*25), txt, font=CardIntro, fill=color)
+    draw.text((X,460+AddedLines*27), txt, font=CardIntro, fill=color)
     if(IfLined):
         if(txt not in half):
-            ul = Image.new("RGB",(22,3),color=color)
-            img.paste(ul,(X,460+(AddedLines+1)*25))
+            ul = Image.new("RGB",(24,3),color=color)
+            img.paste(ul,(X,460+(AddedLines+1)*27))
         else:
             if(txt in shorter):
-                ul = Image.new("RGB",(11,3),color=color)
-                img.paste(ul,(X,460+(AddedLines+1)*25))
+                ul = Image.new("RGB",(12,3),color=color)
+                img.paste(ul,(X,460+(AddedLines+1)*27))
+            elif(txt == '.'):
+                ul = Image.new("RGB",(8,3),color=color)
+                img.paste(ul,(X,460+(AddedLines+1)*27))
             else:
-                ul = Image.new("RGB",(13,3),color=color)
-                img.paste(ul,(X,460+(AddedLines+1)*25))
+                ul = Image.new("RGB",(16,3),color=color)
+                img.paste(ul,(X,460+(AddedLines+1)*27))
         
         
     if(txt not in half):
-        X += 22
+        X += 24
     else:
         if(txt in shorter):
-            X += 11
+            X += 12
+        elif(txt == '.'):
+            X += 8
         else:
-            X += 15
+            X += 16
     return X
 
 def TextDetail(img, txt):
@@ -150,13 +158,13 @@ def TextDetail(img, txt):
                 
             #放置图标
             icon = Image.open("./icon/" + IconIndex + ".png")
-            icon = icon.resize((22,22))
+            icon = icon.resize((24,24))
             
             r, g, b, a = icon.split()
-            img.paste(icon,(x,460+AddedLines*25+4),mask=a)
+            img.paste(icon,(x,460+AddedLines*27+4),mask=a)
             
             AutoEnter += 1
-            x += 24
+            x += 26
             i += 1
             continue
 
@@ -174,7 +182,7 @@ def TextDetail(img, txt):
 #载入字体
 CardTitle = ImageFont.truetype("./GenshinFont.ttf", 48)
 CardType = ImageFont.truetype("./GenshinFont.ttf", 20)
-CardIntro = ImageFont.truetype("./GenshinFont.ttf", 22)
+CardIntro = ImageFont.truetype("./GenshinFont.ttf", 24)
 CardCostTXT = ImageFont.truetype("./GenshinFont.ttf", 72)
     
 #读取Excel数据
@@ -277,6 +285,7 @@ def IfSkip(row):
         ErrorInfo = ErrorInfo + BasicInfo + '\n'
     return flag
 
+#for i in range(1, 2):
 for i in range(1, LineNum):
     content = table.row_values(i)
     if IfSkip(i):
@@ -314,22 +323,56 @@ for i in range(1, LineNum):
     SonType = content[4]
     SonX = 1580 - len(SonType)*20
     PictDraw.text((SonX,389), SonType, font=CardType, fill='white')
+    
+    #可携带数量
+    if(not HideAdd):
+        if(content[8] == ''):
+            content[8] = '2'
+        blackblock = Image.new("RGB",(50,30),color='#2B333D')
+        card.paste(blackblock,(900,825))
+        PictDraw.text((900,824), "0/" + content[8], font=CardIntro, fill='white')
 
     #费用
-    CostType = content[2][1:]
-    if(CostType not in elements):
-        CostType = "HS"
-    costimg = Image.open("./basic_resource/elements/" + CostType + ".png")
-    costimg = costimg.resize((120,120))
-    maskcost = costimg
-    card.paste(costimg,(333,232),mask=maskcost)
-    CostVal = content[2][0]
+    #根据井号分割
+    CostCode = content[2]
+    CutList = []
+    pos = 0
+    while(pos != -1):
+        CutList.append(pos)
+        pos = CostCode.find("#", pos+1)
+    CutList.append(len(CostCode))
+    
+    #逐个处理
+    for i in range(len(CutList)-1):
+        left = CutList[i]
+        right = CutList[i+1]
+        if(i != 0):
+            left += 1
+        
+        CostVal = content[2][left]
+        CostType = content[2][left+1:right]
+        if(CostType not in elements):
+            CostType = "HS"
+        if(CostType == 'CN'):
+            costimg = Image.open("./basic_resource/elements/" + CostType + ".png")
+            costimg = costimg.resize((135,135))
+            maskcost = costimg
+            card.paste(costimg,(326 + 135*(i//5),225+135*i),mask=maskcost)
+        else:
+            costimg = Image.open("./basic_resource/elements/" + CostType + ".png")
+            costbd = Image.open("./basic_resource/elementBase.png")
+            costimg = costimg.resize((118,118))
+            costbd = costbd.resize((115,130))
+            maskcost = costbd
+            card.paste(costbd,(335 + 135*(i//5),228+135*(i%5)),mask=maskcost)
+            maskcost = costimg
+            card.paste(costimg,(335 + 135*(i//5),233+135*(i%5)),mask=maskcost)
 
-    #原神字体的1需要单独调整下位置
-    if(CostVal == '1'):
-        DrawBorder(PictDraw, 372, 248, str(CostVal), CardCostTXT, 'black', 'white', 2)
-    else:    
-        DrawBorder(PictDraw, 368, 248, str(CostVal), CardCostTXT, 'black', 'white', 2)
+        #原神字体的1需要单独调整下位置
+        if(CostVal == '1'):
+            DrawBorder(PictDraw, 376 + 135*(i//5), 248 + 135*(i%5), str(CostVal), CardCostTXT, 'black', 'white', 2)
+        else:    
+            DrawBorder(PictDraw, 370 + 135*(i//5), 248 + 135*(i%5), str(CostVal), CardCostTXT, 'black', 'white', 2)
 
     #card.show()
     card.save("./output/" + content[0] + ".png")
