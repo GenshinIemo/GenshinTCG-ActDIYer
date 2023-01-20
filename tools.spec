@@ -1,11 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 block_cipher = None
 
 
 a = Analysis(
-    ['tools.py'],
+    ['main.py',
+    'act.py',
+    'rule.py',
+    'basicdata.py'],
+    
     pathex=[],
     binaries=[],
     datas=[],
