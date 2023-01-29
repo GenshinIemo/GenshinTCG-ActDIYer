@@ -30,6 +30,12 @@ BasicEnd = Image.open("./basic_resource/ruleUI/end.png")
 BasicBody = BasicBody.resize((238,20))
 BodyDraw = ImageDraw.Draw(BasicBody)
 BodyDraw.line([(234,0),(234,24)],"#313B46")
+
+#开始结束
+beg = bdt.settings[0] - 1
+end = bdt.settings[1]
+if(bdt.settings[1] == '*' or bdt.settings[1] > LineNum):
+    end = LineNum
         
 #逐字印刷
 debugger = ""
@@ -316,11 +322,7 @@ def IfSkip(row):
 def execute():
     print("开始生成规则")
     
-    global LineNum
-    beg = bdt.settings[0] - 1
-    end = bdt.settings[1]
-    if(bdt.settings[1] == '*' or bdt.settings[1] > LineNum):
-        end = LineNum
+    global LineNum, beg, end
     
     LineNum = end - beg + 1
     for i in range(beg, end):

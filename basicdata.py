@@ -1,4 +1,5 @@
 import xlrd
+from PIL import Image
 
 #基本数据
 half = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890,.?:;()=-+*/（）「」『』<>&$@#%^*[]"
@@ -28,4 +29,10 @@ settings[0] = int(settings[0])
 if(settings[1] != '*'): settings[1] = int(settings[1])
 settings[2] = int(settings[2])
 if(settings[3] != '*'): settings[3] = int(settings[3])
+settings[4] = int(settings[4])
+if(settings[5] != '*'): settings[5] = int(settings[5])
 print(settings)
+
+#召唤物边框
+PictBase = Image.open("./basic_resource/stateUI/PictBase.png")
+PictBase = PictBase.resize((250,413))

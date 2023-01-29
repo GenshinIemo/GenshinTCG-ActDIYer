@@ -4,7 +4,7 @@ from PIL import Image, ImageFilter, ImageFont, ImageDraw
 import xlrd
 
 import basicdata as bdt
-import rule
+import rule, state
 
 #读取Excel数据
 excel = xlrd.open_workbook("行动牌.xls")
@@ -16,6 +16,12 @@ half = bdt.half
 shorter = bdt.shorter
 colorDict = bdt.colorDict
 elements = bdt.elements
+
+#开始结束
+beg = bdt.settings[2] - 1
+end = bdt.settings[3]
+if(bdt.settings[3] == '*' or bdt.settings[3] > LineNum):
+    end = LineNum
 
 #参考自：https://stackoverflow.com/questions/41556771/is-there-a-way-to-outline-text-with-a-dark-line-in-pil
 #传入draw对象，以fillcolor为前景色，shadowcolor是边框色, boldval是粗度
@@ -235,12 +241,12 @@ def IfSkip(row):
     IconTest = True
     BasicInfo = 'Excel 行动牌 第' + str(row+1) + '行:\n'
     
-    #错误一：必要信息没有完全填写
+    #错误：必要信息没有完全填写
     if(content[0] == '' or content[2] == '' or content[3] == '' or content[6] == '' or content[7] == ''):
         BasicInfo = BasicInfo + '·必要表格信息没有完全填写\n'
         flag = True
     
-    #错误二：找不到图片
+    #错误：找不到图片
     try:
         f = open("./pictures/" + content[6])
         f.close()
@@ -251,9 +257,9 @@ def IfSkip(row):
         BasicInfo = BasicInfo + '·图片被打开、被其他应用占用或未填写任何图片\n'
         flag = True
     
-    #错误三；规则未建立
+    #错误；规则未建立
     #根据井号分割
-    if(content[10] != "" and content[10] != "不打印规则"):
+    if(content[11] != "" and content[11] != "不打印"):
         RuleInput = content[9]
         CutList = []
         pos = 0
@@ -274,16 +280,31 @@ def IfSkip(row):
                     if CurrentRule not in rule.UsingRule.keys():
                         BasicInfo = BasicInfo + '·规则' + CurrentRule + '未被成功建立\n'
                         flag = True
+    #错误；附属物未建立
+    #根据井号分割
+    if(content[11] != "" and content[11] != "不打印"):
+        Input = content[10]
+        CutList = []
+        pos = 0
+        while(pos != -1):
+            CutList.append(pos)
+            pos = Input.find("#", pos+1)
+        CutList.append(len(Input))
         
-        #逐个处理
         for i in range(len(CutList)-1):
-            left = CutList[i]
-            right = CutList[i+1]
-            if(i != 0):
-                left += 1
-            CurrentRule = content[9][left:right]
+                left = CutList[i]
+                right = CutList[i+1]
+                if(i != 0):
+                    left += 1
+                Current = content[10][left:right]
+
+                #创建带规则的图片
+                if Current != "":
+                    if Current not in state.UsingState.keys():
+                        BasicInfo = BasicInfo + '·附属物' + Current + '未被成功建立\n'
+                        flag = True
     
-    #错误三：高级语法错误
+    #错误：高级语法错误
     try:
         txt = content[5]
         i = 0
@@ -325,7 +346,7 @@ def IfSkip(row):
         flag = True
         IconTest = False
     
-    #错误四：图标不存在
+    #错误：图标不存在
     if IconTest:
         txt = content[5]
         i = 0
@@ -368,14 +389,29 @@ def CraftRuleCard(img, PutRule):
     img.paste(ruleimg,(750,570-RuleInfo[2]),mask=a)
     return img
 
+def CraftStateCard(img, PutState):
+    BackgroundDarker(img)
+    StateInfo = state.UsingState[PutState]
+    stateimg = Image.open(StateInfo[0])
+    stateimg = stateimg.resize((int(StateInfo[1]*1.4+4),int(StateInfo[2]*1.4)))
+    
+    r, g, b, a = stateimg.split()
+    img.paste(stateimg,(777,int(570-StateInfo[2]/1.4)),mask=a)
+    
+    if(StateInfo[3] != '*'):
+        cardimg = Image.open(StateInfo[3])
+        cardimg = cardimg.resize((242,405))
+        
+        img.paste(cardimg, (504,426-70))
+        r, g, b, a = bdt.PictBase.split()
+        img.paste(bdt.PictBase, (500,422-70), mask=a)
+    
+    return img
+
 def execute():
     print("开始生成卡牌")
     
-    global LineNum
-    beg = bdt.settings[2] - 1
-    end = bdt.settings[3]
-    if(bdt.settings[3] == '*' or bdt.settings[3] > LineNum):
-        end = LineNum
+    global LineNum, beg, end
     
     LineNum = end - beg + 1
     #for i in range(1, 2):
@@ -467,26 +503,41 @@ def execute():
             else:    
                 DrawBorder(PictDraw, 370 + 135*(i//5), 248 + 135*(i%5), str(CostVal), CardCostTXT, 'black', 'white', 2)
         
-        #使用Rule规则
+        #使用Rule规则和State附属
         #根据井号分割
-        if(content[10] != "" and content[10] != "不打印规则"):
+        if(content[11] != "" and content[11] != "不打印"):
+            addsign = 0
             RuleInput = content[9]
-            CutList = []
-            pos = 0
-            while(pos != -1):
-                CutList.append(pos)
-                pos = RuleInput.find("#", pos+1)
-            CutList.append(len(RuleInput))
+            RCutList = []
+            Rpos = 0
+            while(Rpos != -1):
+                RCutList.append(Rpos)
+                Rpos = RuleInput.find("#", Rpos+1)
+            RCutList.append(len(RuleInput))
+            if(RuleInput != ""):
+                addsign += len(RCutList)
             
-            if(content[10] == "多图拼贴"):
+            StateInput = content[10]
+            SCutList = []
+            Spos = 0
+            while(Spos != -1):
+                SCutList.append(Spos)
+                Spos = StateInput.find("#", Spos+1)
+            SCutList.append(len(StateInput))
+            if(StateInput != ""):
+                if addsign != 0: addsign -= 1
+                addsign += len(SCutList)
+            
+            if(content[11] == "多图拼贴"):
                 #准备将图片拼贴
-                TogetherBase = Image.new("RGBA", (2000,1141*len(CutList)))
+                TogetherBase = Image.new("RGBA", (2000,1141*(addsign)))
                 TogetherBase.paste(card, (0,0))
             
             #逐个处理
-            for i in range(len(CutList)-1):
-                left = CutList[i]
-                right = CutList[i+1]
+            putted = 0
+            for i in range(len(RCutList)-1):
+                left = RCutList[i]
+                right = RCutList[i+1]
                 if(i != 0):
                     left += 1
                 CurrentRule = content[9][left:right]
@@ -494,16 +545,36 @@ def execute():
                 #创建带规则的图片
                 if CurrentRule != "":
                     CardSave = Image.new("RGBA", (2000,1141))
+                    putted += 1
                     CardSave.paste(card, (0,0))
                     RuledCard = CraftRuleCard(CardSave, CurrentRule)
                     
-                    if(content[10] == "输出多张图"):
-                        CardSave.save("./output/行动牌/[" + content[0] + CurrentRule + "-" + "]" + content[1] + ".png")
+                    if(content[11] == "输出多张图"):
+                        CardSave.save("./output/行动牌/[" + content[0] + "-" + CurrentRule + "]" + content[1] + ".png")
                     else:
-                        TogetherBase.paste(CardSave, (0,1141*(i+1)))
+                        TogetherBase.paste(CardSave, (0,1141*(putted)))
+            
+            for i in range(len(SCutList)-1):
+                left = SCutList[i]
+                right = SCutList[i+1]
+                if(i != 0):
+                    left += 1
+                CurrentSt= content[10][left:right]
+
+                #创建带附属的图片
+                if CurrentSt != "":
+                    CardSave = Image.new("RGBA", (2000,1141))
+                    CardSave.paste(card, (0,0))
+                    putted += 1
+                    StatedCard = CraftStateCard(CardSave, CurrentSt)
+                    
+                    if(content[11] == "输出多张图"):
+                        CardSave.save("./output/行动牌/[" + content[0] + "-" + CurrentSt + "]" + content[1] + ".png")
+                    else:
+                        TogetherBase.paste(CardSave, (0,1141*(putted)))
 
         #card.show()
-        if(content[10] == "多图拼贴"):
+        if(content[11] == "多图拼贴"):
             TogetherBase.save("./output/行动牌/[" + content[0] + "]" + content[1] + ".png")
         else:    
             card.save("./output/行动牌/[" + content[0] + "]" + content[1] + ".png")
